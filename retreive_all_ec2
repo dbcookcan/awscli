@@ -27,7 +27,7 @@
 
 
 # CONSTANTS/VARS
-DEBUG=1                                          # 0=no / 1<=yes
+DEBUG=0                                          # 0=no / 1<=yes
 VER=0.2						 # Script version number
 OUTFILE="ec2-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated runtime date
 SCRIPTNAME=$(basename ${0})                      # Figure out script name
