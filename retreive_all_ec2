@@ -1,0 +1,110 @@
+#!/bin/bash
+# retreive_all_ec2
+# Retrieve list of all our instances across all regions
+# David Cook, Nov 3/2020
+#
+# Sample code found at:
+# https://stackoverflow.com/questions/42086712/how-to-see-all-running-amazon-ec2-instances-across-all-regions
+#
+# This program will create a tabular list of all our AWS EC2 instances attached to the authorized
+# account with ten (10) fields separated by colon (:) as a field separator.
+# The fields are Type, Region, Availability Zone, InstanceID, InstanceName, InstanceType, Running status,
+# VPC ID, Image ID and Private IP Address..
+# An example of a record is as follows:
+# EC2:us-west-2:us-west-2b:i-01f5314b991ee14f4:m5.large:running 
+#
+# These can be parsed with: cat $OUTFILE | awk 'BEGIN { FS=":" } {print $2}'
+# With the awk $x value being
+# $0 - the whole line   $4 - InstanceID          $8  - VPC ID
+# $1 - EC2              $5 - InstanceName        $9  - Image ID
+# $2 - Region           $6 - InstanceType        $10 - Priv IP Address
+# $3 - Availability Zn  $7 - Running State 
+#
+# HISTORY
+# VER 	DATE		WHO	STATUS
+# v0.1	2020/11/03	dbc	Initial delivery
+# v0.2  2020/11/06	dbc	Changed filter to get Key/Name pair subquery with help from C Joslyn.
+
+
+# CONSTANTS/VARS
+DEBUG=1                                          # 0=no / 1<=yes
+VER=0.2						 # Script version number
+OUTFILE="ec2-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated runtime date
+SCRIPTNAME=$(basename ${0})                      # Figure out script name
+
+
+#
+# FUNCTIONS
+function aws.get-all-regions() {
+  # Dynamically retrieve a list of all regions
+  REGIONS=`aws ec2 describe-regions --region us-east-1 --output text --query Regions[*].[RegionName]`
+}
+
+function aws.print-all-instances() {
+  # Call other function to retrieve region list into this scope for processing.
+  aws.get-all-regions
+  rc=$?
+  [ $rc -ne 0 ] && echo "AWSCLI fail fetching regions : RC($rc)" && logger "`basename $0` AWSCLI fail fetching regions"
+
+
+  # Loop through the regions and retrieve the EC2 resources found in each
+  for REGION in $REGIONS
+  do
+    echo -e "Instances in '$REGION'..";
+
+    # Get the full list from awscli
+    # Process the list with jq adding the region name to the json output stream via --arg passed then
+    # add output formatting to flatten the hierarchy and make it tabular output
+    aws ec2 describe-instances --region $REGION | \
+    jq -r --arg myReg "$REGION" '.Reservations[].Instances[] + {"Region":$myReg} | .Tags = (.Tags | from_entries) | "EC2:\(.Region):\(.Placement.AvailabilityZone):\(.InstanceId):\(.Tags.Name):\(.InstanceType):\(.State.Name):\(.VpcId):\(.ImageId):\(.PrivateIpAddress)"' >> ${OUTFILE}
+    rc=$?
+    [ $rc -ne 0 ] && echo "AWSCLI fail on $REGION : RC($rc)" && logger "`basename $0` AWSCLI fail on ${REGION}"
+  done
+}
+
+
+#
+# MAIN
+
+# Log start of program
+logger "${SCRIPTNAME} Starting"
+
+#
+# Check if I am already running
+# Note 1: You must provide full path name to binaries to ensure this
+#         works in cron environments.
+# Note 2: Do not enclose if statement in brackets or it will
+#         execute as a sub-shell and break process.
+#if /usr/sbin/pidof -x "`basename $0`" -o $$ >/dev/null; then
+# MacOS doesn't have pidof, use ps ax & grep
+#if [ $(ps ax | grep -i `basename $0` | grep -v grep  | wc -l) -gt 2 ]; then
+if [ $(/bin/ps ax | /usr/bin/grep -i `/usr/bin/basename $0` | /usr/bin/grep -v grep  | /usr/bin/wc -l) -gt 2 ]; then
+    logger "`basename $0` already running. Exiting..."
+    echo "Process already running"
+    exit 8
+fi
+
+
+# Delete if present and re-create the output file
+[ -f ${OUTFILE} ] && rm ${OUTFILE}
+touch ${OUTFILE}
+rc=$?
+[ $rc -gt 0 ] && logger "`basename $0` cannot create ${OUTFILE}. Exiting..." && exit 8
+
+
+# Retrieve all our instances
+aws.print-all-instances
+
+
+# Let's see what we got
+if [ $DEBUG -gt 0 ]; then
+   cat ${OUTFILE} | awk 'BEGIN { FS=":" } {print $2"  ++  " $3"  ++  " $4"  ++  "$5"  ++  "$6}'
+fi
+
+
+# Log completion
+logger "${SCRIPTNAME} Starting"
+
+#
+# EOF
+#
