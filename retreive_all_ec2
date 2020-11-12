@@ -66,8 +66,10 @@ function aws.print-all-instances() {
 #
 # MAIN
 
+
 # Log start of program
 logger "${SCRIPTNAME} Starting"
+
 
 #
 # Check if I am already running

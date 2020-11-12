@@ -97,7 +97,7 @@ aws.print-all-vpcs
 
 
 # Log completion
-logger "${SCRIPTNAME} Starting"
+logger "${SCRIPTNAME} Normal completion"
 
 #
 # EOF
