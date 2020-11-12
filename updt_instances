@@ -1,0 +1,115 @@
+#!/bin/bash
+# updt_instances
+#
+# Updates the AWS instance list.
+# Script parses your current AWS flat file from 
+# retrieve_all_ec2 script and adds new/unseen values with a 
+# timestamp to the vpc table.
+#
+# TABLE: INSTANCES
+#  id serial
+#  InstId varchar(64) UNIQUE NOT NULL PRIMARY KEY
+#  InstName varchar(64) 
+#  VpcId  varchar(20)
+#  Region varchar(20)
+#  AvailZone varchar(20)
+#  LocalIP varchar(20)
+#  AMIId varchar(64)
+#  RunStatus varchar(20) 
+#  UpdtDate timestamp
+# 
+# HISTORY
+# VER   DATE            WHO     STATUS
+# v0.1  2020/11/03      dbc     Initial delivery
+
+
+# CONSTANTS/VARS
+DEBUG=1                                          # 0=no / 1<=yes
+VER=0.2                                          # Script version number
+DB="inventory"
+CREATE_TABLE=0
+OUTFILE="ec2-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated runtime date
+SCRIPTNAME=$(basename ${0})                      # Figure out script name
+
+
+#
+# MAIN
+
+
+# Log start of program
+logger "${SCRIPTNAME} Starting"
+
+#
+# Check if I am already running
+# Note 1: You must provide full path name to binaries to ensure this
+#         works in cron environments.
+# Note 2: Do not enclose if statement in brackets or it will
+#         execute as a sub-shell and break process.
+#if /usr/sbin/pidof -x "`basename $0`" -o $$ >/dev/null; then
+# MacOS doesn't have pidof, use ps ax & grep
+#if [ $(ps ax | grep -i `basename $0` | grep -v grep  | wc -l) -gt 2 ]; then
+if [ $(/bin/ps ax | /usr/bin/grep -i `/usr/bin/basename $0` | /usr/bin/grep -v grep  | /usr/bin/wc -l) -gt 2 ]; then
+    logger "`basename $0` already running. Exiting..."
+    echo "Process already running"
+    exit 8
+fi
+
+# Create the table
+if [ ${CREATE_TABLE} -gt 0 ]; then
+   psql -d ${DB} -c "CREATE TABLE INSTANCE(id SERIAL, InstId varchar(64) UNIQUE NOT NULL PRIMARY KEY, InstName varchar(64), VpcId varchar(64), Region varchar(20), AvailZone varchar(20), LocalIP varchar(20), AMIId varchar(64), RunStatus varchar(20), UpdtDate timestamp, CONSTRAINT fk_region FOREIGN KEY(Region) REFERENCES RegionName(region))"
+  psql -d ${DB} -c "CREATE INDEX ind_instace ON INSTANCE (InstId, InstName, RunStatus, LocalIP);"
+  psql -d ${DB} -c "SELECT count(*) from INSTANCE;"
+   exit
+fi
+
+
+
+# Does the source file exist?
+[ ! -f ${OUTFILE} ] && echo "${OUTFILE} not present. Exiting." && exit 9
+
+# Get list if unique machine types
+LIST=$(cat ${OUTFILE})
+
+
+# Loop through array and add new items to the database
+for ITEM in $LIST
+do
+  REGION=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $2}')
+  AZ=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $3}')
+  INSTID=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $4}')
+  INSTNM=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $5}')
+  INSTTY=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $6}')
+  RUNSTAT=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $7}')
+  VPCID=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $8}')
+  AMIID=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $9}')
+  IPADDR=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $10}')
+  if [ $DEBUG -gt 0 ]; then
+     echo "REGION     ---> "$REGION
+     echo "AZ         ---> "$AZ
+     echo "INST NAME  ---> "$INSTNM
+     echo "INST ID    ---> "$INSTID
+     echo "INST TYPE  ---> "$INSTTY
+     echo "RUN STAT   ---> "$RUNSTAT
+     echo "VPC ID     ---> "$VPCID
+     echo "AMI ID     ---> "$AMIID
+     echo "IP ADDR    ---> "$IPADDR
+  fi
+
+  # Perform insert
+  psql -d ${DB} -c "INSERT into INSTANCE (InstId, InstName, VpcId, Region, AvailZone, LocalIP, AMIId, RunStatus,UpdtDate) SELECT '$INSTID', '$INSTNM', '$VPCID', '$REGION', '$AZ', '$IPADDR', '$AMIID', '$RUNSTAT',now() WHERE NOT EXISTS ( SELECT 1 from INSTANCE WHERE InstId='$INSTID');"
+done
+
+# InstId
+# InstName
+# VpcId
+# Region
+# AvailZone
+# LocalIP
+# AMIId
+# RunStatus
+
+logger "${SCRIPTNAME} Normal completion"
+
+#
+# EOF
+#
