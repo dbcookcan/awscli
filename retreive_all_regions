@@ -1,0 +1,78 @@
+#!/bin/bash
+# retreive_all_regions
+# AWSCLI list all regions
+# David Cook, Nov 3/2020
+#
+
+# HISTORY
+# VER   DATE            WHO     STATUS
+# v0.1  2020/11/03      dbc     Initial delivery
+
+
+# CONSTANTS/VARS
+DEBUG=0                                          # 0=no / 1<=yes
+VER=0.1                                          # Script version number
+OUTFILE="region-list_"`date +"%Y-%m-%d"`".txt"   # OUTFILE contains calculated runtime date
+SCRIPTNAME=$(basename ${0})                      # Figure out script name
+
+
+#
+# FUNCTIONS
+function aws.get-all-regions() {
+  # Dynamically retrieve a list of all regions
+  REGIONS=`aws ec2 describe-regions --region us-east-1 --output text --query Regions[*].[RegionName]`
+}
+
+
+#
+# MAIN
+
+# Log start of program
+logger "${SCRIPTNAME} Starting"
+
+
+#
+# Check if I am already running
+# Note 1: You must provide full path name to binaries to ensure this
+#         works in cron environments.
+# Note 2: Do not enclose if statement in brackets or it will
+#         execute as a sub-shell and break process.
+#if /usr/sbin/pidof -x "`basename $0`" -o $$ >/dev/null; then
+# MacOS doesn't have pidof, use ps ax & grep
+#if [ $(ps ax | grep -i `basename $0` | grep -v grep  | wc -l) -gt 2 ]; then
+if [ $(/bin/ps ax | /usr/bin/grep -i `/usr/bin/basename $0` | /usr/bin/grep -v grep  | /usr/bin/wc -l) -gt 2 ]; then
+    logger "`basename $0` already running. Exiting..."
+    echo "Process already running"
+    exit 8
+fi
+
+
+# Delete if present and re-create the output file
+[ -f ${OUTFILE} ] && rm ${OUTFILE}
+touch ${OUTFILE}
+rc=$?
+[ $rc -gt 0 ] && logger "`basename $0` cannot create ${OUTFILE}. Exiting..." && exit 8
+
+
+# Fetch from AWS
+aws.get-all-regions
+touch ${OUTFILE}
+rc=$?
+if [ $rc -gt 0 ]; then
+   echo "Error creating file ${OUTFILE}"
+   logger "${SCRIPTNAME} Error creating ${OUTFILE}"
+   exit 9
+fi
+ 
+
+# Loop through results
+for ITEM in ${REGIONS}
+do
+   echo "REG:"${ITEM} >> ${OUTFILE}
+done
+
+logger "${SCRIPTNAME} normal completion"
+
+#
+# EOF
+#
