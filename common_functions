@@ -1,0 +1,23 @@
+#!/bin/bash
+# common_functions
+# This script contains a common function library to be included in
+# other scripts. This script is not meant to run alone.
+#
+# To use this script it must be "dot included" into the target script
+# in order to execute in the same shell environment.
+# 
+# Usage:
+# . ./common_functions
+#
+
+
+[ $DEBUG -gt 0 ] && echo "I am in common_functions"
+
+
+# Basic setup standard to all scripting.
+SCRIPTNAME=$(basename ${0})          # Figure out script name
+DB="inventory"                       # Postgres DB name
+
+#
+# EOF
+#
