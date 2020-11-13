@@ -25,3 +25,10 @@ updt_machine_type                # Update Postgres with the instance type info
 updt_regions                     # Update Postgres with the region info
 updt_vpcs                        # Update Postgres with the vpc info
 
+Order of Operations
+1st run all retrieve_xxxxx applications by cron to create flat files.
+2nd run updt_region
+3rd run updt_machine_type
+4th run updt_vpcs
+5th run updt_instances
+
