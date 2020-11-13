@@ -30,37 +30,16 @@
 DEBUG=0                                          # 0=no / 1<=yes
 VER=0.2						 # Script version number
 OUTFILE="ec2-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated runtime date
-SCRIPTNAME=$(basename ${0})                      # Figure out script name
 
 
 #
-# FUNCTIONS
-function aws.get-all-regions() {
-  # Dynamically retrieve a list of all regions
-  REGIONS=`aws ec2 describe-regions --region us-east-1 --output text --query Regions[*].[RegionName]`
-}
-
-function aws.print-all-instances() {
-  # Call other function to retrieve region list into this scope for processing.
-  aws.get-all-regions
-  rc=$?
-  [ $rc -ne 0 ] && echo "AWSCLI fail fetching regions : RC($rc)" && logger "`basename $0` AWSCLI fail fetching regions"
+# Include Common Functions
+. ./common_functions
 
 
-  # Loop through the regions and retrieve the EC2 resources found in each
-  for REGION in $REGIONS
-  do
-    echo -e "Instances in '$REGION'..";
-
-    # Get the full list from awscli
-    # Process the list with jq adding the region name to the json output stream via --arg passed then
-    # add output formatting to flatten the hierarchy and make it tabular output
-    aws ec2 describe-instances --region $REGION | \
-    jq -r --arg myReg "$REGION" '.Reservations[].Instances[] + {"Region":$myReg} | .Tags = (.Tags | from_entries) | "EC2:\(.Region):\(.Placement.AvailabilityZone):\(.InstanceId):\(.Tags.Name):\(.InstanceType):\(.State.Name):\(.VpcId):\(.ImageId):\(.PrivateIpAddress)"' >> ${OUTFILE}
-    rc=$?
-    [ $rc -ne 0 ] && echo "AWSCLI fail on $REGION : RC($rc)" && logger "`basename $0` AWSCLI fail on ${REGION}"
-  done
-}
+#
+# PRIVATE FUNCTIONS
+# Functions private to this application
 
 
 #
@@ -71,20 +50,8 @@ function aws.print-all-instances() {
 logger "${SCRIPTNAME} Starting"
 
 
-#
-# Check if I am already running
-# Note 1: You must provide full path name to binaries to ensure this
-#         works in cron environments.
-# Note 2: Do not enclose if statement in brackets or it will
-#         execute as a sub-shell and break process.
-#if /usr/sbin/pidof -x "`basename $0`" -o $$ >/dev/null; then
-# MacOS doesn't have pidof, use ps ax & grep
-#if [ $(ps ax | grep -i `basename $0` | grep -v grep  | wc -l) -gt 2 ]; then
-if [ $(/bin/ps ax | /usr/bin/grep -i `/usr/bin/basename $0` | /usr/bin/grep -v grep  | /usr/bin/wc -l) -gt 2 ]; then
-    logger "`basename $0` already running. Exiting..."
-    echo "Process already running"
-    exit 8
-fi
+# Check if I am the only instance of myself running
+am-i-running
 
 
 # Delete if present and re-create the output file
@@ -95,7 +62,7 @@ rc=$?
 
 
 # Retrieve all our instances
-aws.print-all-instances
+aws.get-all-instances
 
 
 # Let's see what we got

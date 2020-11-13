@@ -13,8 +13,16 @@
 # 
 
 
-DB="inventory"
 CREATE_TABLE=0
+
+#
+# Include Common Functions
+. ./common_functions
+
+
+#
+# PRIVATE FUNCTIONS
+# Functions private to this application
 
 
 #
@@ -25,20 +33,9 @@ CREATE_TABLE=0
 logger "${SCRIPTNAME} Starting"
 
 
-#
 # Check if I am already running
-# Note 1: You must provide full path name to binaries to ensure this
-#         works in cron environments.
-# Note 2: Do not enclose if statement in brackets or it will
-#         execute as a sub-shell and break process.
-#if /usr/sbin/pidof -x "`basename $0`" -o $$ >/dev/null; then
-# MacOS doesn't have pidof, use ps ax & grep
-#if [ $(ps ax | grep -i `basename $0` | grep -v grep  | wc -l) -gt 2 ]; then
-if [ $(/bin/ps ax | /usr/bin/grep -i `/usr/bin/basename $0` | /usr/bin/grep -v grep  | /usr/bin/wc -l) -gt 2 ]; then
-    logger "`basename $0` already running. Exiting..."
-    echo "Process already running"
-    exit 8
-fi
+am-i-running
+
 
 # Create the table
 if [ ${CREATE_TABLE} -gt 0 ]; then

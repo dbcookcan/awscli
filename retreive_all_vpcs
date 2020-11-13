@@ -29,38 +29,16 @@
 DEBUG=0                                          # 0=no / 1<=yes
 VER=0.2						 # Script version number
 OUTFILE="vpc-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated runtime date
-SCRIPTNAME=$(basename ${0})                      # Figure out script name
 
 
 #
-# FUNCTIONS
-function aws.get-all-regions() {
-  # Dynamically retrieve a list of all regions
-  REGIONS=`aws ec2 describe-regions --region us-east-1 --output text --query Regions[*].[RegionName]`
-}
-
-function aws.print-all-vpcs() {
-  # Call other function to retrieve region list into this scope for processing.
-  aws.get-all-regions
-  rc=$?
-  [ $rc -ne 0 ] && echo "AWSCLI fail fetching regions : RC($rc)" && logger "`basename $0` AWSCLI fail fetching regions"
+# Include Common Functions
+. ./common_functions
 
 
-  # Loop through the regions and retrieve the EC2 resources found in each
-  for REGION in $REGIONS
-  do
-    echo -e "VPCs in '$REGION'..";
-
-    # Get the full list from awscli
-    # Process the list with jq adding the region name to the json output stream via --arg passed then
-    # add output formatting to flatten the hierarchy and make it tabular output
-    aws ec2 describe-vpcs --region $REGION | \
-    jq -r --arg myReg "$REGION" '.Vpcs[] + {"Region":$myReg} | "VPC:\(.Region):\(.VpcId):\(.CidrBlock)"' >> ${OUTFILE}
-    rc=$?
-
-    [ $rc -ne 0 ] && echo "AWSCLI fail on $REGION : RC($rc)" && logger "`basename $0` AWSCLI fail on ${REGION}"
-  done
-}
+#
+# PRIVATE FUNCTIONS
+# Functions private to this application
 
 
 #
@@ -93,7 +71,7 @@ rc=$?
 
 
 # Retrieve all our instances
-aws.print-all-vpcs
+aws.get-all-vpcs
 
 
 # Log completion

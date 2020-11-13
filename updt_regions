@@ -3,7 +3,7 @@
 #
 # Updates the AWS Region list.
 # Script parses your current AWS flat file from 
-# retrieve_region_list script and adds new/unseen values with a 
+# retrieve_all_regions script and adds new/unseen values with a 
 # timestamp to the region table.
 #
 # TABLE: Region
@@ -14,16 +14,23 @@
 # HISTORY
 # VER   DATE            WHO     STATUS
 # v0.1  2020/11/03      dbc     Initial delivery
-# v0.2  2020/11/06      dbc     Changed filter to get Key/Name pair subquery with help from C Joslyn.
 
 
 # CONSTANTS/VARS
 DEBUG=0                                          # 0=no / 1<=yes
 VER=0.2                                          # Script version number
-DB="inventory"
 CREATE_TABLE=0
 OUTFILE="region-list_"`date +"%Y-%m-%d"`".txt"   # OUTFILE contains calculated runtime date
-SCRIPTNAME=$(basename ${0})                      # Figure out script name
+
+
+#
+# Include Common Functions
+. ./common_functions
+
+
+#
+# PRIVATE FUNCTIONS
+# Functions private to this application
 
 
 #
@@ -33,20 +40,9 @@ SCRIPTNAME=$(basename ${0})                      # Figure out script name
 # Log start of program
 logger "${SCRIPTNAME} Starting"
 
-#
 # Check if I am already running
-# Note 1: You must provide full path name to binaries to ensure this
-#         works in cron environments.
-# Note 2: Do not enclose if statement in brackets or it will
-#         execute as a sub-shell and break process.
-#if /usr/sbin/pidof -x "`basename $0`" -o $$ >/dev/null; then
-# MacOS doesn't have pidof, use ps ax & grep
-#if [ $(ps ax | grep -i `basename $0` | grep -v grep  | wc -l) -gt 2 ]; then
-if [ $(/bin/ps ax | /usr/bin/grep -i `/usr/bin/basename $0` | /usr/bin/grep -v grep  | /usr/bin/wc -l) -gt 2 ]; then
-    logger "`basename $0` already running. Exiting..."
-    echo "Process already running"
-    exit 8
-fi
+am-i-running
+
 
 # Create the table
 if [ ${CREATE_TABLE} -gt 0 ]; then

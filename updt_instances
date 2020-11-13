@@ -15,7 +15,8 @@
 #  AvailZone varchar(20)
 #  LocalIP varchar(20)
 #  AMIId varchar(64)
-#  RunStatus varchar(20) 
+#  RunStatus varchar(20)
+#  ReportDate date
 #  UpdtDate timestamp
 # 
 # HISTORY
@@ -26,46 +27,46 @@
 # CONSTANTS/VARS
 DEBUG=1                                          # 0=no / 1<=yes
 VER=0.2                                          # Script version number
-DB="inventory"
+#DB="inventory"
 CREATE_TABLE=0
 OUTFILE="ec2-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated runtime date
-SCRIPTNAME=$(basename ${0})                      # Figure out script name
+OUTFILE="ec2-list-all_2020-11-12.txt"  # OUTFILE contains calculated runtime date
+ReportDate=$(echo ${OUTFILE} | sed -e 's/^.*_//' -e 's/\.txt//')
+
+
+#
+# Include Common Functions
+. ./common_functions
+
+
+#
+# PRIVATE FUNCTIONS
+# Functions private to this application
 
 
 #
 # MAIN
 
-
 # Log start of program
 logger "${SCRIPTNAME} Starting"
 
-#
+
 # Check if I am already running
-# Note 1: You must provide full path name to binaries to ensure this
-#         works in cron environments.
-# Note 2: Do not enclose if statement in brackets or it will
-#         execute as a sub-shell and break process.
-#if /usr/sbin/pidof -x "`basename $0`" -o $$ >/dev/null; then
-# MacOS doesn't have pidof, use ps ax & grep
-#if [ $(ps ax | grep -i `basename $0` | grep -v grep  | wc -l) -gt 2 ]; then
-if [ $(/bin/ps ax | /usr/bin/grep -i `/usr/bin/basename $0` | /usr/bin/grep -v grep  | /usr/bin/wc -l) -gt 2 ]; then
-    logger "`basename $0` already running. Exiting..."
-    echo "Process already running"
-    exit 8
-fi
+am-i-running
+
 
 # Create the table
 if [ ${CREATE_TABLE} -gt 0 ]; then
-   psql -d ${DB} -c "CREATE TABLE INSTANCE(id SERIAL, InstId varchar(64) UNIQUE NOT NULL PRIMARY KEY, InstName varchar(64), VpcId varchar(64), Region varchar(20), AvailZone varchar(20), LocalIP varchar(20), AMIId varchar(64), RunStatus varchar(20), UpdtDate timestamp, CONSTRAINT fk_region FOREIGN KEY(Region) REFERENCES RegionName(region))"
+   psql -d ${DB} -c "CREATE TABLE INSTANCE(id SERIAL, InstId varchar(64) UNIQUE NOT NULL PRIMARY KEY, InstName varchar(64), InstType varchar(20), VpcId varchar(64), Region varchar(20), AvailZone varchar(20), LocalIP varchar(20), AMIId varchar(64), RunStatus varchar(20), ReportDate date, UpdtDate timestamp, CONSTRAINT fk_region FOREIGN KEY(Region) REFERENCES RegionName(region))"
   psql -d ${DB} -c "CREATE INDEX ind_instace ON INSTANCE (InstId, InstName, RunStatus, LocalIP);"
   psql -d ${DB} -c "SELECT count(*) from INSTANCE;"
    exit
 fi
 
 
-
 # Does the source file exist?
 [ ! -f ${OUTFILE} ] && echo "${OUTFILE} not present. Exiting." && exit 9
+
 
 # Get list if unique machine types
 LIST=$(cat ${OUTFILE})
@@ -96,7 +97,7 @@ do
   fi
 
   # Perform insert
-  psql -d ${DB} -c "INSERT into INSTANCE (InstId, InstName, VpcId, Region, AvailZone, LocalIP, AMIId, RunStatus,UpdtDate) SELECT '$INSTID', '$INSTNM', '$VPCID', '$REGION', '$AZ', '$IPADDR', '$AMIID', '$RUNSTAT',now() WHERE NOT EXISTS ( SELECT 1 from INSTANCE WHERE InstId='$INSTID');"
+  psql -d ${DB} -c "INSERT into INSTANCE (InstId, InstName, InstType, VpcId, Region, AvailZone, LocalIP, AMIId, RunStatus, ReportDate, UpdtDate) SELECT '$INSTID', '$INSTNM', '$INSTTY', '$VPCID', '$REGION', '$AZ', '$IPADDR', '$AMIID', '$RUNSTAT','$ReportDate', now() WHERE NOT EXISTS ( SELECT 1 from INSTANCE WHERE InstId='$INSTID');"
 done
 
 # InstId
