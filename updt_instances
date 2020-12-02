@@ -10,7 +10,8 @@
 #  id serial
 #  InstId varchar(64) UNIQUE NOT NULL PRIMARY KEY
 #  InstName varchar(64) 
-#  VpcId  varchar(20)
+#  InstType varchar(20)
+#  VpcId  varchar(64)
 #  Region varchar(20)
 #  AvailZone varchar(20)
 #  LocalIP varchar(20)

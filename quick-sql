@@ -1,0 +1,5 @@
+# quick sql one-liner
+#
+# Get all t2 family machines, sorted by region/type/name 
+psql -d inventory -c "select instid, region, instname, insttype from instance where insttype like 't2%' and reportdate='2020-12-02' order by region,insttype,instname;"
+
