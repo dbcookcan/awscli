@@ -29,6 +29,7 @@
 DEBUG=0                                          # 0=no / 1<=yes
 VER=0.2						 # Script version number
 OUTFILE="vpc-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated runtime date
+ReportDate=$(echo ${OUTFILE} | sed -e 's/^.*_//' -e 's/\.txt//')
 
 
 #

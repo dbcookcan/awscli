@@ -14,13 +14,15 @@
 # HISTORY
 # VER   DATE            WHO     STATUS
 # v0.1  2020/11/03      dbc     Initial delivery
-
+# v0.2	2020/11/17	dbc	Refactor with common_functions
+# v0.3	2020/12/02	dbc	Supress std error
 
 # CONSTANTS/VARS
 DEBUG=0                                          # 0=no / 1<=yes
-VER=0.2                                          # Script version number
-CREATE_TABLE=0
-OUTFILE="region-list_"`date +"%Y-%m-%d"`".txt"   # OUTFILE contains calculated runtime date
+VER=0.3                                          # Script version number
+OUTFILE="region-list_"`date +"%Y-%m-%d"`".txt"   # OUTFILE contains calculated
+						 # runtime date
+ReportDate=$(echo ${OUTFILE} | sed -e 's/^.*_//' -e 's/\.txt//')
 
 
 #
@@ -44,14 +46,6 @@ logger "${SCRIPTNAME} Starting"
 am-i-running
 
 
-# Create the table
-if [ ${CREATE_TABLE} -gt 0 ]; then
-   psql -d ${DB} -c "CREATE TABLE RegionName(id SERIAL, Region varchar(20) UNIQUE NOT NULL PRIMARY KEY, UpdtDate timestamp)"
-   psql -d ${DB} -c "SELECT count(*) from RegionName;"
-   exit
-fi
-
-
 # Does the source file exist?
 [ ! -f ${OUTFILE} ] && echo "${OUTFILE} not present. Exiting." && exit 9
 
@@ -63,7 +57,7 @@ LIST=$(cat ${OUTFILE} | awk 'BEGIN { FS=":" } {print $2}')
 for ITEM in $LIST
 do
   echo "---> "$ITEM
-  psql -d ${DB} -c "INSERT into RegionName (Region,UpdtDate) SELECT '$ITEM', now() WHERE NOT EXISTS ( SELECT 1 from RegionName WHERE Region='$ITEM');"
+  psql -d ${DB} -c "INSERT into RegionName (Region,UpdtDate) SELECT '$ITEM', now() WHERE NOT EXISTS ( SELECT 1 from RegionName WHERE Region='$ITEM');" 2>/dev/null
 done
 
 logger "${SCRIPTNAME} Normal completion"

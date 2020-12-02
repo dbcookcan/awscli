@@ -22,17 +22,16 @@
 # HISTORY
 # VER   DATE            WHO     STATUS
 # v0.1  2020/11/03      dbc     Initial delivery
-
+# v0.2  2020/12/02	dbc	Supress std error messages
+#				Update SQL for compound PK on instance
 
 # CONSTANTS/VARS
 DEBUG=1                                          # 0=no / 1<=yes
 VER=0.2                                          # Script version number
-#DB="inventory"
-CREATE_TABLE=0
-OUTFILE="ec2-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated runtime date
-OUTFILE="ec2-list-all_2020-11-12.txt"  # OUTFILE contains calculated runtime date
+OUTFILE="ec2-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated
+						 # runtime date
 ReportDate=$(echo ${OUTFILE} | sed -e 's/^.*_//' -e 's/\.txt//')
-
+[ $DEBUG -gt 0 ] && echo "Report Date: "$ReportDate
 
 #
 # Include Common Functions
@@ -55,15 +54,6 @@ logger "${SCRIPTNAME} Starting"
 am-i-running
 
 
-# Create the table
-if [ ${CREATE_TABLE} -gt 0 ]; then
-   psql -d ${DB} -c "CREATE TABLE INSTANCE(id SERIAL, InstId varchar(64) UNIQUE NOT NULL PRIMARY KEY, InstName varchar(64), InstType varchar(20), VpcId varchar(64), Region varchar(20), AvailZone varchar(20), LocalIP varchar(20), AMIId varchar(64), RunStatus varchar(20), ReportDate date, UpdtDate timestamp, CONSTRAINT fk_region FOREIGN KEY(Region) REFERENCES RegionName(region))"
-  psql -d ${DB} -c "CREATE INDEX ind_instace ON INSTANCE (InstId, InstName, RunStatus, LocalIP);"
-  psql -d ${DB} -c "SELECT count(*) from INSTANCE;"
-   exit
-fi
-
-
 # Does the source file exist?
 [ ! -f ${OUTFILE} ] && echo "${OUTFILE} not present. Exiting." && exit 9
 
@@ -84,6 +74,8 @@ do
   VPCID=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $8}')
   AMIID=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $9}')
   IPADDR=$(echo ${ITEM} | awk 'BEGIN {FS=":"}{print $10}')
+
+
   if [ $DEBUG -gt 0 ]; then
      echo "REGION     ---> "$REGION
      echo "AZ         ---> "$AZ
@@ -96,8 +88,9 @@ do
      echo "IP ADDR    ---> "$IPADDR
   fi
 
+
   # Perform insert
-  psql -d ${DB} -c "INSERT into INSTANCE (InstId, InstName, InstType, VpcId, Region, AvailZone, LocalIP, AMIId, RunStatus, ReportDate, UpdtDate) SELECT '$INSTID', '$INSTNM', '$INSTTY', '$VPCID', '$REGION', '$AZ', '$IPADDR', '$AMIID', '$RUNSTAT','$ReportDate', now() WHERE NOT EXISTS ( SELECT 1 from INSTANCE WHERE InstId='$INSTID');"
+  psql -d ${DB} -c "INSERT into INSTANCE (InstId, InstName, InstType, VpcId, Region, AvailZone, LocalIP, AMIId, RunStatus, ReportDate, UpdtDate) SELECT '$INSTID', '$INSTNM', '$INSTTY', '$VPCID', '$REGION', '$AZ', '$IPADDR', '$AMIID', '$RUNSTAT','$ReportDate', now() WHERE NOT EXISTS ( SELECT 1 from INSTANCE WHERE InstId='$INSTID' and ReportDate='$ReportDate');" 2>/dev/null
 done
 
 # InstId

@@ -16,13 +16,14 @@
 # HISTORY
 # VER   DATE            WHO     STATUS
 # v0.1  2020/11/03      dbc     Initial delivery
-
+# v0.2	2020/12/02	dbc	Supress std error
 
 # CONSTANTS/VARS
 DEBUG=1                                          # 0=no / 1<=yes
-VER=0.2                                          # Script version number
-CREATE_TABLE=0
-OUTFILE="vpc-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated runtime date
+VER=0.3                                          # Script version number
+OUTFILE="vpc-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated
+						 # runtime date
+ReportDate=$(echo ${OUTFILE} | sed -e 's/^.*_//' -e 's/\.txt//')
 
 
 #
@@ -46,15 +47,6 @@ logger "${SCRIPTNAME} Starting"
 am-i-running
 
 
-# Create the table
-if [ ${CREATE_TABLE} -gt 0 ]; then
-   psql -d ${DB} -c "CREATE TABLE VPC(id SERIAL, VpcId varchar(64) UNIQUE NOT NULL PRIMARY KEY, VpcRegion varchar(20), VpcNet varchar(20), UpdtDate timestamp, CONSTRAINT fk_region FOREIGN KEY(VpcRegion) REFERENCES RegionName(region))"
-   psql -d ${DB} -c "SELECT count(*) from VPC;"
-   exit
-fi
-
-
-
 # Does the source file exist?
 [ ! -f ${OUTFILE} ] && echo "${OUTFILE} not present. Exiting." && exit 9
 
@@ -75,7 +67,7 @@ do
   fi
 
   # Perform insert
-  psql -d ${DB} -c "INSERT into VPC (VpcId,VpcRegion,VpcNet,UpdtDate) SELECT '$VPCID', '$VPCREGION', '$VPCNET',now() WHERE NOT EXISTS ( SELECT 1 from VPC WHERE VpcId='$VPCID');"
+  psql -d ${DB} -c "INSERT into VPC (VpcId,VpcRegion,VpcNet,UpdtDate) SELECT '$VPCID', '$VPCREGION', '$VPCNET',now() WHERE NOT EXISTS ( SELECT 1 from VPC WHERE VpcId='$VPCID');" 2>/dev/null
 done
 
 logger "${SCRIPTNAME} Normal completion"

@@ -23,14 +23,15 @@
 # HISTORY
 # VER 	DATE		WHO	STATUS
 # v0.1	2020/11/03	dbc	Initial delivery
-# v0.2  2020/11/06	dbc	Changed filter to get Key/Name pair subquery with help from C Joslyn.
-
+# v0.2  2020/11/06	dbc	Changed filter to get Key/Name pair subquery
+#			 	with help from C Joslyn.
+# v0.3	2020/11/17	dbc	Refactor common_functions module
 
 # CONSTANTS/VARS
 DEBUG=0                                          # 0=no / 1<=yes
-VER=0.2						 # Script version number
+VER=0.3						 # Script version number
 OUTFILE="ec2-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated runtime date
-
+ReportDate=$(echo ${OUTFILE} | sed -e 's/^.*_//' -e 's/\.txt//')
 
 #
 # Include Common Functions

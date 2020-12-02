@@ -1,0 +1,194 @@
+#!/bin/bash
+# manage_tables
+# Manage the SQL tables for the enumeration database for near-line
+# inventory.
+# David Cook, Nov 16 2020
+#
+
+# HISTORY
+# VER   DATE            WHO     STATUS
+# v0.1  2020/11/16      dbc     Initial delivery
+#
+# Table descriptions
+# regionname            Lookup table for region names
+#                       Updated daily. Inserts if not exist. Additive only
+#                       with no method of cleaning up old as it is unexepected.
+# machinetype           Lookup table for machine types
+#                       Updated daily. Inserts if not exist. Only adds unique
+#                       values from our set of instances. Instance types we
+#                       do not use will not appear in the table.
+# vpc                   Lookup table for vpc instances
+#                       Updated daily. Inserts if not exist. Additive only.
+#                        - contains FK into region table
+# instance              Main database of machine instances
+#                       To be added to daily so you can look at configs
+#                       from past days. To select data you must also chose
+#                       your ReportDate so you don't double count.
+#                        - contains FK into region table
+#                        - NO FK into vpc table as a terminated instance
+#                          has no VPC and we don't want to carry a NULL
+#                          row in VPC table just to match it.
+#
+# TABLE RegionName(
+#       id SERIAL,
+#       Region varchar(20) UNIQUE NOT NULL PRIMARY KEY,
+#       UpdtDate timestamp)
+#
+# TABLE machinetype(
+#       id SERIAL PRIMARY KEY,
+#       MachineType varchar(20) UNIQUE NOT NULL,
+#       UpdtDate timestamp)
+#
+# TABLE VPC(
+#       id SERIAL,
+#       VpcId varchar(64) UNIQUE NOT NULL PRIMARY KEY,
+#       VpcRegion varchar(20) NOT NULL,
+#       VpcNet varchar(20),
+#       UpdtDate timestamp NOT NULL,
+# CONSTRAINT fk_region
+#       FOREIGN KEY(VpcRegion)
+#          REFERENCES RegionName(region))
+#
+# TABLE PRODUCT(
+#       id SERIAL,
+#       PROD_NAME varchar(20) UNIQUE NOT NULL PRIMARY KEY,
+#       UpdtDate timestamp)
+#
+# TABLE NODE_TYPE(
+#       id Serial,
+#       NODETYPE varchar(64) UNIQUE NOT NULL PRIMARY KEY,
+#       UpdtDate timestamp)
+#
+# TABLE INSTANCE(
+#       id SERIAL,
+#       InstId varchar(64) NOT NULL,
+#       InstName varchar(64) NOT NULL,
+#       InstType varchar(20) NOT NULL,
+#       VpcId varchar(64),
+#       Region varchar(20) NOT NULL,
+#       AvailZone varchar(20) NOT NULL,
+#       LocalIP varchar(20),
+#       AMIId varchar(64) NOT NULL,
+#       RunStatus varchar(20) NOT NULL,
+#       ReportDate date NOT NULL,
+#       UpdtDate timestamp NOT NULL,
+# PRIMARY KEY(
+#         InstId,ReportDate),
+# CONSTRAINT fk_region
+#       FOREIGN KEY(Region)
+#          REFERENCES RegionName(region))
+#
+
+
+
+# CONSTANTS/VARS
+DEBUG=0                                          # 0=no / 1<=yes
+VER=0.r12                                          # Script version number
+set -uo pipefail
+
+#
+# Include Common Functions
+. ./common_functions
+
+
+#
+# PRIVATE FUNCTIONS
+# Functions private to this application
+# cleanup_on_sig() - called on caught interrupt. Performs cleanup operations.
+cleanup_on_sig()
+{
+  echo "Caught Signal ... cleaning up."
+  exit 99
+}
+
+create_regionname()
+{
+  echo "Create the region table"
+  psql -d ${DB} -c "CREATE TABLE RegionName(id SERIAL, Region varchar(20) UNIQUE NOT NULL PRIMARY KEY, UpdtDate timestamp)"
+}
+
+
+create_machinetype()
+{
+   echo "Create machinetype"
+   psql -d ${DB} -c "CREATE TABLE machinetype(id SERIAL PRIMARY KEY, MachineType varchar(20) UNIQUE NOT NULL, UpdtDate timestamp)"
+}
+
+create_vpc()
+{
+   echo "Create vpc table"
+   psql -d ${DB} -c "CREATE TABLE VPC(id SERIAL, VpcId varchar(64) UNIQUE NOT NULL PRIMARY KEY, VpcRegion varchar(20) NOT NULL, VpcNet varchar(20), UpdtDate timestamp NOT NULL, CONSTRAINT fk_region FOREIGN KEY(VpcRegion) REFERENCES RegionName(region))"
+}
+
+
+create_instance()
+{
+   echo "Create instance table"
+   psql -d ${DB} -c "CREATE TABLE INSTANCE(id SERIAL, InstId varchar(64) NOT NULL, InstName varchar(64) NOT NULL, InstType varchar(20) NOT NULL, VpcId varchar(64), Region varchar(20) NOT NULL, AvailZone varchar(20) NOT NULL, LocalIP varchar(20), AMIId varchar(64) NOT NULL, RunStatus varchar(20) NOT NULL, ReportDate date NOT NULL, UpdtDate timestamp NOT NULL, PRIMARY KEY(InstId, ReportDate), CONSTRAINT fk_region FOREIGN KEY(Region) REFERENCES RegionName(region))"
+   psql -d ${DB} -c "CREATE INDEX ind_instace ON INSTANCE (InstId, InstName, RunStatus, LocalIP);"
+}
+
+
+
+#
+# MAIN
+
+#
+# Trap on signals
+####################################################################################
+trap cleanup_on_sig 1 2 3 6 15
+
+
+
+while getopts 'dhc:' OPTION; do
+  case "$OPTION" in
+    d)
+      echo "DROP all tables"
+      psql -d ${DB} -c "DROP TABLE INSTANCE;"
+      psql -d ${DB} -c "DROP TABLE VPC;"
+      psql -d ${DB} -c "DROP TABLE MACHINETYPE;"
+      psql -d ${DB} -c "DROP TABLE REGIONNAME;"
+      ;;
+
+    h)
+      echo "h stands for h"
+      ;;
+
+    c)
+      avalue="$OPTARG"
+      echo "Create Table $OPTARG"
+
+      case $OPTARG in
+         instance)
+                        echo "Creating the instance table"
+                        create_instance
+                        ;;
+         vpc)
+                        echo "Creating the vpc table"
+                        create_vpc
+                        ;;
+         machinetype)
+                        echo "Creating the machinetype table"
+                        create_machinetype
+                        ;;
+         regionname)
+                        echo "Creating the regionname table"
+                        create_regionname
+                        ;;
+         *)
+                        echo "Not a valid database type"
+                        ;;
+      esac
+
+      ;;
+
+    ?)
+      echo "script usage: $(basename $0) [-l] [-h] [-a somevalue]" >&2
+      exit 1
+      ;;
+  esac
+done
+shift "$(($OPTIND -1))"
+
+
+
