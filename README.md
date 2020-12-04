@@ -26,9 +26,17 @@ updt_regions                     # Update Postgres with the region info
 updt_vpcs                        # Update Postgres with the vpc info
 
 Order of Operations
-1st run all retrieve_xxxxx applications by cron to create flat files.
-2nd run updt_region
-3rd run updt_machine_type
-4th run updt_vpcs
-5th run updt_instances
+1 Retrieve all AWS files
+  As root
+  # ./retreive_all_regions
+  # ./retreive_all_vpcs 
+  # ./retreive_all_ec2
+
+2 Become user postgres (in same directory so no "su - xx")
+
+3 Apply files to the database
+  $ ./updt_regions
+  $ ./updt_machine_type
+  $ ./updt_vpcs
+  $ ./updt_instances
 
