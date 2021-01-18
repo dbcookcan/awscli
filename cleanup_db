@@ -1,0 +1,50 @@
+#!/bin/bash
+# cleanup_db
+#
+# Does history cleanup on the database.
+# Removes instance data older than specified retention period.
+#
+# HISTORY
+# VER   DATE            WHO     STATUS
+# v0.1  2021/01/18      dbc     Initial delivery
+
+# CONSTANTS/VARS
+DEBUG=0                                          # 0=no / 1<=yes
+VER=0.1                                          # Script version number
+OUTFILE="vpc-list-all_"`date +"%Y-%m-%d"`".txt"  # OUTFILE contains calculated
+						 # runtime date
+ReportDate=$(echo ${OUTFILE} | sed -e 's/^.*_//' -e 's/\.txt//')
+
+RETENTION_DAYS=60
+
+
+#
+# Include Common Functions
+. ./common_functions
+
+
+#
+# PRIVATE FUNCTIONS
+# Functions private to this application
+
+
+#
+# MAIN
+
+
+# Log start of program
+logger "${SCRIPTNAME} Starting"
+
+# Check if I am already running
+am-i-running
+
+
+# Delete older than RETENTION_DAYS from the database
+# Perform cleanup
+psql -d ${DB} -c "DELETE from INSTANCE where ReportDate < (Current_Date - Interval '${RETENTION_DAYS} days');" 2>/dev/null
+
+logger "${SCRIPTNAME} Normal completion"
+
+#
+# EOF
+#
