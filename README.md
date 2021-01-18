@@ -24,7 +24,8 @@ updt_instances                   # Update Postgres with the instance info
 updt_machine_type                # Update Postgres with the instance type info
 updt_regions                     # Update Postgres with the region info
 updt_vpcs                        # Update Postgres with the vpc info
-
+cleanup_db			 # Cron daily, delete older than retention
+				 # period.
 Order of Operations
 1 Retrieve all AWS files
 
