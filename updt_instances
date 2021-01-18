@@ -4,7 +4,7 @@
 # Updates the AWS instance list.
 # Script parses your current AWS flat file from 
 # retrieve_all_ec2 script and adds new/unseen values with a 
-# timestamp to the vpc table.
+# timestamp to the instance table.
 #
 # TABLE: INSTANCES
 #  id serial
