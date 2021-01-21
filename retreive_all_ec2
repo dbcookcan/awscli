@@ -73,7 +73,8 @@ fi
 
 
 # Log completion
-logger "${SCRIPTNAME} Starting"
+logger "${SCRIPTNAME} normal completion"
+
 
 #
 # EOF

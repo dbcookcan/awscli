@@ -6,6 +6,14 @@
 # retrieve_all_ec2 script and adds new/unseen values with a 
 # timestamp to the instance table.
 #
+# NOTES: - Compound PK (InstName + ReportDate).
+#        - Two (2) dates are for different purposes - they are not redundant
+#        - ReportDate is the date (from the CSV) from the file creation. This is
+#          so you can never re-process a processed file.
+#        - UpdtDate is the timestamp (from the view of the db server) when the
+#          db record was processed so you can track if they were applied on the
+#          creation date or at another time.
+#
 # TABLE: INSTANCES
 #  id serial
 #  InstId varchar(64) UNIQUE NOT NULL PRIMARY KEY
